@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: webapp
+  name: webapp
+  namespace: webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-secret-appsettings.Production.json: "secret/webapp/appsettings"
+        vault.hashicorp.com/role: "webapp"
+        #vault.hashicorp.com/secret-volume-path: "/app"
+      labels:
+        app: webapp
+    spec:
+      serviceAccountName: webapp
+      containers:
+      - env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: Production
+        name: app
+        image: webapp:latest
+        imagePullPolicy: Never # Force pull image locally
+        ports:
+        - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+        resources:
+          limits:
+            cpu: 100m
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 256Mi
+      volumes:
+      - name: tmp-config
+        emptyDir: {}
+      restartPolicy: Always
+    
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webapp
+  labels:
+    app: webapp
